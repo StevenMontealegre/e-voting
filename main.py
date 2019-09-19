@@ -7,6 +7,10 @@ Original file is located at
     https://colab.research.google.com/drive/1C2t59YpunSxgQfHWMztLJWt9F-IqT1AS
 """
 
+#from Crypto.Util.Padding import pad, unpad
+from base64 import b64encode
+from base64 import b64decode
+import os
 import sys
 import random
 import Crypto
@@ -14,6 +18,7 @@ import binascii
 import hashlib
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import AES
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA256
 from cryptography.fernet import Fernet
@@ -203,34 +208,47 @@ def generar_hora():
 def generar_QR():
     return generar_hora()
 
-def firmar(msg):
-    p12 = crypto.load_pkcs12(open("/home/antivar/Documents/EVoting/registrador.p12", "rb").read(), "12345678")
+def firmar(msg, p12):
+    p12 = crypto.load_pkcs12(open(p12, "rb").read(), "12345678")
     private_key = p12.get_privatekey()
-    sign = crypto.sign(private_key, msg, "sha256")
+    sign = crypto.sign(private_key, msg, "sha384")
     stringQR = "".join( chr(x) for x in bytearray(sign) )
-
     return msg + stringQR
-QR = generar_QR()
-signed_message = firmar(str(QR))
 
-
-def leer_QR(qr):
-    return qr[qr.find("("):qr.find(")")+1], qr[qr.find(")")+1:]
-
-def verify(msg, sign):
-    p12 = crypto.load_pkcs12(open("/home/antivar/Documents/EVoting/registrador.p12", "rb").read(), "12345678")
+def verify(msg, sign, p12):
+    p12 = crypto.load_pkcs12(open(p12, "rb").read(), "12345678")
     certificate = p12.get_certificate()
-    return crypto.verify(certificate, sign, msg, "sha256")
+    return crypto.verify(certificate, sign, msg, "sha384")
 
-qr = signed_message[signed_message.find("("):signed_message.find(")")+1]
-pre_sign = signed_message[signed_message.find(")"):]
-pre_sign = pre_sign[1:]
-pre_sign2   = bytearray()
-for i in range(len(pre_sign)):
-    pre_sign2+=bytes([ord(pre_sign[i])])
-sign = bytes(pre_sign2)
-print(verify(qr, sign))
+def firma_bytes(signed_message):
+    msg = signed_message[signed_message.find("("):signed_message.find(")")+1]
+    pre_sign = signed_message[signed_message.find(")"):]
+    pre_sign = pre_sign[1:]
+    pre_sign2 = bytearray()
 
+    for i in range(len(pre_sign)):
+        pre_sign2+=bytes([ord(pre_sign[i])])
+    sign = bytes(pre_sign2)
+
+    return msg, sign
+
+def firma_bytes2(signed_message):
+    msg = signed_message[:signed_message.find("=")+1]
+    pre_sign = signed_message[signed_message.find("="):]
+    pre_sign = pre_sign[1:]
+    pre_sign2 = bytearray()
+
+    for i in range(len(pre_sign)):
+        pre_sign2+=bytes([ord(pre_sign[i])])
+    sign = bytes(pre_sign2)
+
+    return msg, sign
+
+"""
+QR = generar_QR()
+signed_message = firmar(str(QR), "/home/antivar/Documents/EVoting/registrador.p12")
+msg, sign = firma_bytes(signed_message)
+"""
 def encrypt_vote(message):
     # Definir clave e initial_vector 
     key = os.urandom(32)
@@ -262,7 +280,13 @@ def decrypt_vote(ct, key, iv):
     msg = msg[:-msg[-1]]
     return msg
 
-ct, key, counter = encrypt_vote("Voto por Gustavo Petro")
-msg = decrypt_vote(ct, key, counter)
+ct, key, iv = encrypt_vote("Voto por Gustavo Petro")
+msg = decrypt_vote(ct, key, iv)
 
 print(msg)
+signed_message = firmar(ct, "/home/antivar/Documents/EVoting/VOTO.p12")
+
+msg, sign = firma_bytes2(signed_message)
+
+print(msg)
+print(verify(msg, sign, "/home/antivar/Documents/EVoting/VOTO.p12"))
