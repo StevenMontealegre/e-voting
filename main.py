@@ -230,3 +230,39 @@ for i in range(len(pre_sign)):
     pre_sign2+=bytes([ord(pre_sign[i])])
 sign = bytes(pre_sign2)
 print(verify(qr, sign))
+
+def encrypt_vote(message):
+    # Definir clave e initial_vector 
+    key = os.urandom(32)
+    iv = os.urandom(16)
+    obj = AES.new(key, AES.MODE_CBC, iv)
+    
+    # Realizar padding
+    length = 16 - (len(message) % 16)
+    message = bytes(message, 'utf-8')
+    message += bytes([length])*length
+    
+    # Encripcion, obtencion texto cifrado y vector inicial en base 64
+    ct_bytes = obj.encrypt(message)
+    iv = b64encode(obj.IV).decode('utf-8')
+    ct = b64encode(ct_bytes).decode('utf-8')
+    
+    return ct, key, iv
+
+def decrypt_vote(ct, key, iv):
+    # Decodificación de base 64
+    ct = b64decode(ct)
+    iv = b64decode(iv)
+
+    # Desencripcion
+    obj = AES.new(key, AES.MODE_CBC, iv)
+    msg = obj.decrypt(ct)
+
+    # ELiminacion de padding
+    msg = msg[:-msg[-1]]
+    return msg
+
+ct, key, counter = encrypt_vote("Voto por Gustavo Petro")
+msg = decrypt_vote(ct, key, counter)
+
+print(msg)
