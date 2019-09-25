@@ -9,7 +9,22 @@ from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 import datetime
 from OpenSSL import crypto
+from pymongo import MongoClient
+import urllib.parse
 
+class Database:
+    def __init__(self):
+        username = urllib.parse.quote_plus('user')
+        password = urllib.parse.quote_plus('v4s_ed1-20192')
+
+        self.client = MongoClient('192.168.96.38',
+                      27017,
+                      username=username,
+                      password=password,
+                      authSource='vas',
+                      authMechanism='SCRAM-SHA-256')
+
+database = Database()
 class Usuario:
     
     def __init__(self, id, voto):
@@ -197,9 +212,6 @@ def generar_QR():
     hora_generada = mes,dia,anio,hora,min,seg
     return hora_generada
 
-#def generar_QR():
-#    return generar_hora()
-
 def firmar(msg, p12):
     """ Firma un mensaje con el archivo p12 indicado
         Args:
@@ -294,6 +306,10 @@ def encrypt_vote(message):
     iv = b64encode(obj.IV).decode('utf-8')
     ct = b64encode(ct_bytes).decode('utf-8')
 
+    db = database.client.vas
+    db.voto.insert_one({"voto": ct})
+    db.clave.insert_one({"clave": key, "iv": iv})
+
     return ct, key, iv
 
 def decrypt_vote(ct, key, iv):
@@ -320,3 +336,38 @@ def decrypt_vote(ct, key, iv):
 
     return str(msg, 'utf-8')
 
+def conteo():
+    db = database.client.vas
+
+    voto_db = db.voto
+    clave_db = db.clave
+
+    votos = []
+    claves = []
+    for voto in voto_db.find():
+        votos.append(voto['voto'])
+    
+    for clave in clave_db.find():
+        claves.append({"clave": clave["clave"], "iv": clave["iv"]})
+
+    votos_decrypt = []
+    for voto in votos:
+        for clave in claves:
+            try:
+                voto_dc = decrypt_vote(voto, clave["clave"], clave["iv"])
+                if voto_dc != '':
+                    votos_decrypt.append(voto_dc)
+            except:
+                next
+    
+    voto_={"Petro": 0, "Duque": 0}
+
+    for voto in votos_decrypt:
+        if voto=="Voto por Petro":
+            voto_["Petro"] = voto_["Petro"] + 1
+        elif voto=="Voto por Duque":
+            voto_["Duque"] = voto_["Duque"] + 1
+
+
+    print(voto_)
+conteo()
