@@ -288,8 +288,6 @@ def encrypt_vote(message):
         
         Returns:
             ct (str): Mensaje cifrado
-            key (bytes): Clave de encripcion
-            iv (str): Vector inicial de la encripcion
     """
     # Definir clave e initial_vector 
     key = os.urandom(32)
@@ -310,7 +308,7 @@ def encrypt_vote(message):
     db.voto.insert_one({"voto": ct})
     db.clave.insert_one({"clave": key, "iv": iv})
 
-    return ct, key, iv
+    return ct
 
 def decrypt_vote(ct, key, iv):
     """ Desencripcion simetrica con CBC del voto
@@ -336,7 +334,7 @@ def decrypt_vote(ct, key, iv):
 
     return str(msg, 'utf-8')
 
-def conteo():
+def conteo(candidatos):
     db = database.client.vas
 
     voto_db = db.voto
@@ -359,15 +357,11 @@ def conteo():
                     votos_decrypt.append(voto_dc)
             except:
                 next
-    
-    voto_={"Petro": 0, "Duque": 0}
 
-    for voto in votos_decrypt:
-        if voto=="Voto por Petro":
-            voto_["Petro"] = voto_["Petro"] + 1
-        elif voto=="Voto por Duque":
-            voto_["Duque"] = voto_["Duque"] + 1
-
-
-    print(voto_)
-conteo()
+    voto_ = {}
+    for candidato in candidatos:
+        voto_[candidato.getNombre()] = 0
+        for voto in votos_decrypt:
+            if voto == "Voto por {}".format(candidato.getNombre()):
+                voto_[candidato.getNombre()] = voto_[candidato.getNombre()] + 1
+    return voto_
