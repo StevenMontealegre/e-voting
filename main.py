@@ -191,7 +191,7 @@ def esCiudadano(id):
 # GENERACION DE QR -------------------------------------------------------------
 
 def generar_QR():
-    """ Genera la hora maxima habilitada para votar
+    """ Genera la hora maxima habilitada para  
         Args:
         
         Returns:
@@ -224,8 +224,9 @@ def firmar(msg, p12):
     p12 = crypto.load_pkcs12(open(p12, "rb").read(), "12345678")
     private_key = p12.get_privatekey()
     sign = crypto.sign(private_key, msg, "sha384")
-    stringQR = "".join( chr(x) for x in bytearray(sign) )
-    return msg + stringQR
+    stringQR = "".join( ','+str(int(x)) for x in bytearray(sign))
+    resp = msg+'('+stringQR[1:]+')'
+    return resp
 
 def verificar(msg, sign, p12):
     """ Verifica si el mensaje si es el que fue firmado con el archivo p12
@@ -251,12 +252,21 @@ def cargar_qr(signed_message):
             tuple: Una tupla que contiene el mensaje como cadena y la firma como bytes
     """
     msg = signed_message[signed_message.find("("):signed_message.find(")")+1]
-    pre_sign = signed_message[signed_message.find(")"):]
-    pre_sign = pre_sign[1:]
+    sign = signed_message[signed_message.find(")")+2:len(signed_message)-1]
+    nums = sign.split(',')
+
     pre_sign2 = bytearray()
 
-    for i in range(len(pre_sign)):
-        pre_sign2+=bytes([ord(pre_sign[i])])
+    for i in nums:
+        pre_sign2+=bytes([int(i)])
+    #pre_sign = signed_message[signed_message.find(")"):]
+    #pre_sign = pre_sign[1:]
+    #pre_sign2 = bytearray()
+
+
+    #for i in range(len(pre_sign)):
+    #    pre_sign2+=bytes([ord(pre_sign[i])])
+
     sign = bytes(pre_sign2)
 
     return msg, sign
@@ -365,3 +375,7 @@ def conteo(candidatos):
             if voto == "Voto por {}".format(candidato.getNombre()):
                 voto_[candidato.getNombre()] = voto_[candidato.getNombre()] + 1
     return voto_
+
+msg = firmar(str(generar_QR()), "/Users/duvantgo/Documents/EVoting/e-voting/registrador.p12")
+msg, sign = cargar_qr(msg)
+print(verificar(msg, sign, "/Users/duvantgo/Documents/EVoting/e-voting/registrador.p12"))
