@@ -209,8 +209,15 @@ def generar_QR():
         min = minutos + 3
     else: 
         min = minutos + 3
-    hora_generada = mes,dia,anio,hora,min,seg
-    return hora_generada
+    hora_generada = anio,mes,dia,hora,min,seg
+    hora_generada_f = []
+    for i in hora_generada:
+        if(i < 10):
+            hora_generada_f.append("0{}".format(i))
+        else:
+            hora_generada_f.append(str(i))
+
+    return tuple(hora_generada_f)
 
 def firmar(msg, p12):
     """ Firma un mensaje con el archivo p12 indicado
@@ -228,7 +235,7 @@ def firmar(msg, p12):
     resp = msg+'('+stringQR[1:]+')'
     return resp
 
-def verificar(msg, sign, p12):
+def verificar_p12(msg, sign, p12):
     """ Verifica si el mensaje si es el que fue firmado con el archivo p12
         Args:
             msg (str): Cadena con el mensaje a verificar
@@ -241,6 +248,46 @@ def verificar(msg, sign, p12):
     p12 = crypto.load_pkcs12(open(p12, "rb").read(), "12345678")
     certificate = p12.get_certificate()
     return crypto.verify(certificate, sign, msg, "sha384")
+
+def verificar_qr(qr):
+    """
+        Verifica si el qr esta habilitado para votar
+        Args:
+            qr (str): El qr del votante
+        
+        Returns:
+            bool: bool que define si el qr aun es valido
+    """
+    qr = qr[1:len(qr)-1].replace(" ", "").split(",")
+    qr= "".join(qr)
+
+    x = datetime.datetime.now()
+    dia2 = x.day
+    mes2 = x.month
+    anio2 = x.year
+    hora2 = x.hour
+    minutos2 = x.minute
+    seg2 = x.second
+
+    hora_actual = [anio2, mes2, dia2, hora2, minutos2, seg2]
+
+    qr = int(qr)
+    hora_actual_f = []
+    for i in hora_actual:
+        if(i < 10):
+            hora_actual_f.append("0{}".format(i))
+        else:
+            hora_actual_f.append(str(i))
+    
+    hora_actual_f = int("".join(hora_actual_f))
+
+    if(hora_actual_f > qr):
+        return False
+    elif(hora_actual_f <= qr):
+        return True
+    else:
+        return None
+
 
 def cargar_qr(signed_message):
     """ Carga el valor del qr y la firma del mismo
@@ -280,13 +327,20 @@ def cargar_votos(signed_message):
         Returns:
             tuple: Una tupla que contiene el mensaje como cadena y la firma como bytes
     """
-    msg = signed_message[:signed_message.find("=")+1]
-    pre_sign = signed_message[signed_message.find("="):]
-    pre_sign = pre_sign[1:]
+    msg = signed_message[:signed_message.find("(")]
+    sign = signed_message[signed_message.find("=")+3:len(signed_message)-1]
+    nums = sign.split(',')
+
     pre_sign2 = bytearray()
 
-    for i in range(len(pre_sign)):
-        pre_sign2+=bytes([ord(pre_sign[i])])
+    for i in nums:
+        pre_sign2+=bytes([int(i)])
+    #pre_sign = signed_message[signed_message.find("="):]
+    #pre_sign = pre_sign[1:]
+    #pre_sign2 = bytearray()
+
+    #for i in range(len(pre_sign)):
+    #    pre_sign2+=bytes([ord(pre_sign[i])])
     sign = bytes(pre_sign2)
 
     return msg, sign
@@ -372,10 +426,6 @@ def conteo(candidatos):
     for candidato in candidatos:
         voto_[candidato.getNombre()] = 0
         for voto in votos_decrypt:
-            if voto == "Voto por {}".format(candidato.getNombre()):
+            if voto == candidato.getNombre():
                 voto_[candidato.getNombre()] = voto_[candidato.getNombre()] + 1
     return voto_
-
-msg = firmar(str(generar_QR()), "/Users/duvantgo/Documents/EVoting/e-voting/registrador.p12")
-msg, sign = cargar_qr(msg)
-print(verificar(msg, sign, "/Users/duvantgo/Documents/EVoting/e-voting/registrador.p12"))
