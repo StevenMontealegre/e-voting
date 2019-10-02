@@ -24,7 +24,6 @@ class Database:
                       authSource='vas',
                       authMechanism='SCRAM-SHA-256')
 
-database = Database()
 class Usuario:
     
     def __init__(self, id, voto):
@@ -35,8 +34,6 @@ class Usuario:
         return self.__id
     def setId(self, id):
         self.__id = id
-    def isVoto(self):
-        return self.__voto
     def setVoto(self, voto):
         self.__voto = voto
 
@@ -88,7 +85,6 @@ class Registraduria:
     def __init__(self):
         
         # USUARIOS REGISTRADOS -------------------------------------------------
-        
         usu1 = Usuario("1234086575", False)
         usu2 = Usuario("1143975309", False)
         usu3 = Usuario("1013679139", False)
@@ -429,3 +425,5 @@ def conteo(candidatos):
             if voto == candidato.getNombre():
                 voto_[candidato.getNombre()] = voto_[candidato.getNombre()] + 1
     return voto_
+
+database = Database()
